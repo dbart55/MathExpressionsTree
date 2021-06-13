@@ -6,10 +6,10 @@ class Stack: public List<T>
 {
 public:
     T pop(){
-        return List::popFront();
+        return List<T>::popFront();
     }
     void push(T data){
-        List::pushFront(data);
+        List<T>::pushFront(data);
     }
 };
 

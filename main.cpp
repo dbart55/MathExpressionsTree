@@ -1,7 +1,6 @@
 #include <iostream>
-#include <sstream>
-#include <vector>
 #include "expression_tree.h"
+
 using namespace std;
 
 int main()

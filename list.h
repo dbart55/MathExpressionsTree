@@ -1,6 +1,7 @@
 #ifndef __LIST_H__
 #define __LIST_H__
-using namespace std;
+using std::cout;
+using std::endl;
 template <typename T>
 class List
 {
@@ -8,11 +9,7 @@ class List
     {
         T data;
         Node *next=nullptr;
-        Node(T _data, Node *_next=nullptr)
-        {
-            data = _data;
-            next = _next;
-        }
+        Node(T _data, Node *_next=nullptr):data(_data),next(_next) {}
         T getData()
         {
             return data;
@@ -30,22 +27,67 @@ class List
             next = _next;
         }
     };
+    class Iterator
+    {
+    private:
+        Node* currentNode = nullptr;
+    public:
+        Iterator(Node* initialNode = nullptr):currentNode(initialNode) {}
+        ~Iterator()
+        {
+            currentNode = nullptr;
+            delete(currentNode);
+        }
+
+        void setCurrentNode(Node* node)
+        {
+            currentNode = node;
+        }
+        bool hasNext()
+        {
+            return currentNode;
+        }
+        T next()
+        {
+            if(currentNode)
+            {
+                T _data = currentNode->getData();
+                currentNode = currentNode->getNext();
+                return _data;
+            }
+            else
+            {
+                throw "There is not next element.";
+            }
+        }
+    };
+
 protected:
     Node *head = nullptr;
     Node *tail = nullptr;
 public:
+    ~List()
+    {
+        clearAll();
+        head = nullptr;
+        tail = nullptr;
+        delete(head);
+        delete(tail);
+    }
     void pushFront(T data);
     void pushBack(T data);
     T popFront();
     T popBack();
     bool isEmpty();
+    Iterator getIterator();
     void print();
+    void clearAll();
 };
 
 template <typename T>
 bool List<T>::isEmpty()
 {
-    return head == NULL;
+    return !head;
 }
 
 template <typename T>
@@ -66,6 +108,10 @@ void List<T>::pushBack(T data)
     if(isEmpty())
     {
         head = newNode;
+    }
+    else
+    {
+        tail->setNext(newNode);
     }
     tail = newNode;
 }
@@ -101,7 +147,7 @@ T List<T>::popBack()
     T data;
     if(isEmpty())
     {
-        return nullptr;
+        throw "The List is empty.";
     }
     else if(head == tail)
     {
@@ -113,11 +159,11 @@ T List<T>::popBack()
     else
     {
         Node *temp = head;
-        while(temp != NULL && temp->getNext() != tail)
+        while(temp && temp->getNext() != tail)
         {
             temp  = temp->getNext();
         }
-        temp->setNext(NULL);
+        temp->setNext(nullptr);
         data = tail->getData();
         delete(tail);
         tail = temp;
@@ -126,15 +172,32 @@ T List<T>::popBack()
 }
 
 template <typename T>
+typename List<T>::Iterator List<T>::getIterator()
+{
+    return Iterator(head);
+}
+
+template <typename T>
 void List<T>::print()
 {
     Node *temp = head;
-    while(temp != NULL)
+    while(temp)
     {
         cout<<temp->getData()<<" ";
         temp = temp->getNext();
     }
     cout<<endl;
 }
+
+template <typename T>
+void List<T>::clearAll()
+{
+    while(!isEmpty())
+    {
+        popBack();
+    }
+}
+
+
 
 #endif // __LIST_H__
