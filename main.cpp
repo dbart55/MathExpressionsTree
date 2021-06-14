@@ -6,8 +6,8 @@ using namespace std;
 int main()
 {
     ExpressionBtree *tree = new ExpressionBtree("(( 7 +3) *    ( 5-  2))");
-    int resultado = tree->evaluate();
+    tree->inOrder();
+    string resultado = tree->evaluate();
     cout<<resultado<<endl;
-
     return 0;
 }

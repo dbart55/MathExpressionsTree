@@ -3,11 +3,18 @@
 
 #include<algorithm>
 #include<string>
+#include<regex>
 #include "util.h"
 #include "stack.h"
+#include "operator.h"
 using std::string;
 using std::cout;
 using std::cerr;
+using std::sregex_token_iterator;
+using std::to_string;
+using std::stoi;
+
+typedef sregex_token_iterator TokenIterator;
 
 class ExpressionBtree
 {
@@ -29,11 +36,12 @@ class ExpressionBtree
 public:
     ExpressionBtree(string exp);
     void inOrder();
-    int evaluate();
+    string evaluate();
 private:
     TreeNode *root = nullptr;
     void _inOrder(TreeNode *_root);
-    List<string> getTokens(string expression);
+    string _evaluate(TreeNode *node);
+    sregex_token_iterator getTokens(string &expression);
     void clearExpression(string &exp);
     bool validateExpression(string exp);
 };
@@ -44,18 +52,21 @@ ExpressionBtree::ExpressionBtree(string exp)
     {
         clearExpression(exp);
         cout<<exp<<endl;
-        if(validateExpression(exp))
+        if(exp.size())
         {
-            List<string> tokens = getTokens(exp);
             Stack<TreeNode*> parents;
             root = new TreeNode();
             TreeNode *currentNode = root;
             parents.push(currentNode);
 
-            auto it = tokens.getIterator();
-            while(it.hasNext())
+            regex rgx("[\\+\\-\\*\\/\\(\\)]|([0-9]+(\\.[0-9]+)*)");
+
+            TokenIterator iter(exp.begin(), exp.end(), rgx);
+            TokenIterator end;
+
+            for(; iter!= end; ++iter)
             {
-                string token = it.next();
+                string token = *iter;
                 //Se inserta un nodo por la izquierda
                 if(token == "(")
                 {
@@ -92,11 +103,15 @@ ExpressionBtree::ExpressionBtree(string exp)
                     currentNode ->setKey(token);
                     currentNode = parents.pop();
                 }
+                else
+                {
+                    throw "Invalid expression";
+                }
             }
         }
         else
         {
-            throw "Invalid expression";
+            throw "Empty expression";
         }
     }
     catch(string error)
@@ -109,7 +124,7 @@ ExpressionBtree::ExpressionBtree(string exp)
 
 void ExpressionBtree::_inOrder(TreeNode* node)
 {
-    if(!node)
+    if(node)
     {
         _inOrder(node->left);
         cout<<node->getKey()<<" ";
@@ -123,15 +138,33 @@ void ExpressionBtree::inOrder()
     cout<<endl;
 }
 
-int ExpressionBtree::evaluate()
+string ExpressionBtree::_evaluate(TreeNode *node)
 {
-    return 0;
+    TreeNode *leftNode = node->left;
+    TreeNode *rightNode = node->right;
+    if(leftNode && rightNode)
+    {
+        int resultLeft = stoi(_evaluate(leftNode));
+        int resultRight = stoi(_evaluate(rightNode));
+        int resultado = operatorMap[node->getKey()](resultLeft, resultRight);
+        return to_string(resultado);
+    }
+    else
+    {
+        return node->getKey();
+    }
 }
 
-List<string> ExpressionBtree::getTokens(string expr)
+string ExpressionBtree::evaluate()
 {
-    List<string> tokens;
-    return tokens;
+    return _evaluate(root);
+}
+
+sregex_token_iterator ExpressionBtree::getTokens(string &expr)
+{
+    regex rgx("[\\+\\-\\*\\/\\(\\)]|([0-9]+(\\.[0-9]+)*)");
+
+    return sregex_token_iterator(expr.begin(), expr.end(), rgx);
 }
 
 void ExpressionBtree::clearExpression(string &exp)
@@ -139,15 +172,6 @@ void ExpressionBtree::clearExpression(string &exp)
     //Se elimina los espacios en blanco
     exp.erase(remove(exp.begin(),exp.end(),' '),exp.end());
 }
-
-bool ExpressionBtree::validateExpression(string exp)
-{
-    bool validate = true;
-
-    return validate;
-}
-
-
 
 
 #endif // __EXPRESSION_TREE_H__
