@@ -2,7 +2,6 @@
 #define __OPERATOR_H__
 #include <map>
 using std::map;
-using std::string;
 typedef int (*operator_func)(int, int);
 int suma(int a, int b)
 {
@@ -24,8 +23,8 @@ int division(int a, int b)
     return a/b;
 }
 
-map<string, operator_func> operatorMap = {{ "+", &suma}, {"-", &resta}, {"*", &multiplicacion}, {"/", &division}};
-
+map<char, operator_func> operatorMap = {{ '+', &suma}, {'-', &resta}, {'*', &multiplicacion}, {'/', &division}};
+map<char,int> operatorPrecedence = {{'+',1},{'-',1},{'*',2},{'/',2}};
 
 
 

@@ -82,6 +82,7 @@ public:
     Iterator getIterator();
     void print();
     void clearAll();
+    T top();
 };
 
 template <typename T>
@@ -198,6 +199,16 @@ void List<T>::clearAll()
     }
 }
 
+template <typename T>
+T List<T>::top()
+{
+    T _data;
+    if(!isEmpty())
+    {
+        _data = head->data;
+    }
+    return _data;
+}
 
 
 #endif // __LIST_H__

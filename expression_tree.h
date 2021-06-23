@@ -1,177 +1,224 @@
-#ifndef __EXPRESSION_TREE_H__
-#define __EXPRESSION_TREE_H__
-
-#include<algorithm>
-#include<string>
-#include<regex>
-#include "util.h"
-#include "stack.h"
+#ifndef ___EXPRESSION_H__
+#define ___EXPRESSION_H__
 #include "operator.h"
 using std::string;
-using std::cout;
-using std::cerr;
-using std::sregex_token_iterator;
-using std::to_string;
-using std::stoi;
 
-typedef sregex_token_iterator TokenIterator;
-
-class ExpressionBtree
+class Expression
 {
-    struct TreeNode
-    {
-        string key;
-        TreeNode *left = nullptr;
-        TreeNode *right = nullptr;
-        TreeNode(string _key=""):key(_key) {}
-        string getKey()
-        {
-            return key;
-        }
-        void setKey(string _key)
-        {
-            key = _key;
-        };
-    };
 public:
-    ExpressionBtree(string exp);
-    void inOrder();
-    string evaluate();
-private:
-    TreeNode *root = nullptr;
-    void _inOrder(TreeNode *_root);
-    string _evaluate(TreeNode *node);
-    sregex_token_iterator getTokens(string &expression);
-    void clearExpression(string &exp);
-    bool validateExpression(string exp);
+    Expression* left;
+    Expression* right;
+    Expression(Expression* left_=nullptr, Expression* right_=nullptr):left(left_), right(right_) {}
+    virtual ~Expression() {};
+    virtual string toString() const = 0;
+    virtual int evaluate() const = 0;
 };
 
-ExpressionBtree::ExpressionBtree(string exp)
+
+class NumberExpression : public Expression
 {
-    try
+public:
+    int value;
+    NumberExpression(const int value_):Expression(), value(value_) {}
+    string toString()
+    const
     {
-        clearExpression(exp);
-        cout<<exp<<endl;
-        if(exp.size())
+        return std::to_string(value);
+    }
+    int evaluate() const
+    {
+        return value;
+    }
+};
+
+class BinaryExpression : public Expression
+{
+public:
+    char operator_;
+    BinaryExpression(const char oper, Expression* const left_ = 0, Expression* const right_ = 0):Expression(left_, right_), operator_(oper) {}
+    string toString()
+    const
+    {
+        return string{operator_};
+    }
+
+    int evaluate() const
+    {
+        if(operatorMap.count(operator_) > 0)
         {
-            Stack<TreeNode*> parents;
-            root = new TreeNode();
-            TreeNode *currentNode = root;
-            parents.push(currentNode);
-
-            regex rgx("[\\+\\-\\*\\/\\(\\)]|([0-9]+(\\.[0-9]+)*)");
-
-            TokenIterator iter(exp.begin(), exp.end(), rgx);
-            TokenIterator end;
-
-            for(; iter!= end; ++iter)
-            {
-                string token = *iter;
-                //Se inserta un nodo por la izquierda
-                if(token == "(")
-                {
-                    TreeNode *newNode = new TreeNode();
-                    if(currentNode->left)
-                    {
-                        newNode->left = currentNode->left;
-                    }
-                    currentNode->left = newNode;
-
-                    parents.pushFront(currentNode);
-                    currentNode = newNode;
-                }
-                //Se setea el valor en el nodo actual y se inserta un nodo por la derecha
-                else if(token == "+" || token == "-" || token == "*" || token == "/")
-                {
-                    currentNode->setKey(token);
-                    TreeNode *newNode = new TreeNode();
-                    if(currentNode->right)
-                    {
-                        newNode->right = currentNode->right;
-                    }
-                    currentNode->right = newNode;
-                    parents.pushFront(currentNode);
-                    currentNode = newNode;
-                }
-                else if(token == ")")
-                {
-                    currentNode = parents.pop();
-
-                }
-                else if(isNumber(token))
-                {
-                    currentNode ->setKey(token);
-                    currentNode = parents.pop();
-                }
-                else
-                {
-                    throw "Invalid expression";
-                }
-            }
+            return operatorMap[operator_](left->evaluate(), right->evaluate());
         }
-        else
+        return 0;
+    }
+};
+
+class ExpressionTree
+{
+public:
+    const int evaluate();
+    ExpressionTree(const char*);
+    void recorridoInorden();
+    void recorridoPostOrden();
+    void recorridoPreOrden();
+private:
+    const Expression* root;
+    const Expression* buildTree(const char*&);
+    Expression* parseNumero(const char*&);
+    Expression* parseParentesis(const char*&);
+    Expression* parseSumandos(const char*&);
+    Expression* parseFactores(const char*&);
+    void inorden(const Expression*);
+    void postorden(const Expression*);
+    void preorden(const Expression*);
+};
+
+const Expression* ExpressionTree::buildTree(const char*&s)
+{
+    return parseSumandos(s);
+}
+
+ExpressionTree::ExpressionTree(const char* input)
+{
+    root = buildTree(input);
+}
+const int ExpressionTree::evaluate()
+{
+    return root->evaluate();
+}
+
+Expression* ExpressionTree::parseNumero(const char*& s)
+{
+    NumberExpression* numExpr = new NumberExpression(0);
+    while(*s && std::isdigit(*s))
+    {
+        numExpr->value = numExpr->value* 10 + *s++ - '0';
+    }
+    return numExpr;
+}
+
+
+Expression* ExpressionTree::parseParentesis(const char*& s)
+{
+    if(*s == 0)
+    {
+        throw std::runtime_error("Error: Invalid Expression.");
+    }
+    else if(*s == '(')
+    {
+        s++;
+        Expression* expr = parseSumandos(s);
+        if(*s == ')')
         {
-            throw "Empty expression";
+            s++;
+            return expr;
         }
+        throw std::runtime_error("Error: Parentesis no balanceados");
     }
-    catch(string error)
+    else if(std::isdigit(*s))
     {
-        cerr<<error<<endl;
+        Expression* expr = parseNumero(s);
+        return expr;
     }
-
+    throw std::runtime_error("Error: Character invalid.");
 }
 
-
-void ExpressionBtree::_inOrder(TreeNode* node)
+Expression* ExpressionTree::parseFactores(const char*&s)
 {
-    if(node)
+    Expression* left = parseParentesis(s);
+    while(*s)
     {
-        _inOrder(node->left);
-        cout<<node->getKey()<<" ";
-        _inOrder(node->right);
+        if(*s == '*')
+        {
+            s++;
+            Expression* right = parseParentesis(s);
+            left = new BinaryExpression('*', left, right);
+            continue;
+
+        }
+        else if(*s == '/')
+        {
+            s++;
+            Expression* right = parseParentesis(s);
+            left = new BinaryExpression('/', left, right);
+            continue;
+        }
+        return left;
     }
+    return left;
 }
 
-void ExpressionBtree::inOrder()
-{
-    _inOrder(root);
-    cout<<endl;
-}
 
-string ExpressionBtree::_evaluate(TreeNode *node)
+Expression* ExpressionTree::parseSumandos(const char*& s)
 {
-    TreeNode *leftNode = node->left;
-    TreeNode *rightNode = node->right;
-    if(leftNode && rightNode)
+    Expression* left = parseFactores(s);
+    while(*s)
     {
-        int resultLeft = stoi(_evaluate(leftNode));
-        int resultRight = stoi(_evaluate(rightNode));
-        int resultado = operatorMap[node->getKey()](resultLeft, resultRight);
-        return to_string(resultado);
+        if(*s=='+')
+        {
+            s++;
+            Expression* right = parseFactores(s);
+            left = new BinaryExpression('+', left, right);
+            continue;
+        }
+        else if(*s == '-')
+        {
+            s++;
+            Expression* right = parseFactores(s);
+            left = new BinaryExpression('-', left, right);
+            continue;
+        }
+        return left;
     }
-    else
+    return left;
+}
+
+void ExpressionTree::inorden(const Expression* expr)
+{
+    if(expr)
     {
-        return node->getKey();
+        inorden(expr->left);
+        std::cout<<expr->toString()<<" ";
+        inorden(expr->right);
     }
 }
 
-string ExpressionBtree::evaluate()
+void ExpressionTree::recorridoInorden()
 {
-    return _evaluate(root);
+    inorden(root);
+    std::cout<<std::endl;
 }
 
-sregex_token_iterator ExpressionBtree::getTokens(string &expr)
+void ExpressionTree::preorden(const Expression* expr)
 {
-    regex rgx("[\\+\\-\\*\\/\\(\\)]|([0-9]+(\\.[0-9]+)*)");
-
-    return sregex_token_iterator(expr.begin(), expr.end(), rgx);
+    if(expr)
+    {
+        std::cout<<expr->toString()<<" ";
+        preorden(expr->left);
+        preorden(expr->right);
+    }
 }
 
-void ExpressionBtree::clearExpression(string &exp)
+void ExpressionTree::recorridoPreOrden()
 {
-    //Se elimina los espacios en blanco
-    exp.erase(remove(exp.begin(),exp.end(),' '),exp.end());
+    preorden(root);
+    std::cout<<std::endl;
 }
 
+void ExpressionTree::postorden(const Expression* expr)
+{
+    if(expr)
+    {
+        postorden(expr->left);
+        postorden(expr->right);
+        std::cout<<expr->toString()<<" ";
 
-#endif // __EXPRESSION_TREE_H__
+    }
+}
+
+void ExpressionTree::recorridoPostOrden()
+{
+    postorden(root);
+    std::cout<<std::endl;
+}
+
+#endif // ___EXPRESSION_H__
