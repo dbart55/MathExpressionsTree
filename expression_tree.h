@@ -1,7 +1,14 @@
 #ifndef ___EXPRESSION_H__
 #define ___EXPRESSION_H__
 #include "operator.h"
+#include <thread>
+#include <future>
 using std::string;
+using std::thread;
+using std::async;
+using std::future;
+using std::launch;
+using std::promise;
 
 class Expression
 {
@@ -12,6 +19,10 @@ public:
     virtual ~Expression() {};
     virtual string toString() const = 0;
     virtual int evaluate() const = 0;
+    //Version asincrona, utilizando future y async
+    virtual int asyncEvaluate() const = 0;
+    //Version asincrona, utilizando thread, future y promise..
+    virtual void asyncEvaluate2(promise<int>* p) const = 0;
 };
 
 
@@ -27,8 +38,21 @@ public:
     }
     int evaluate() const
     {
+        std::cout<<"Number: "<<value<<std::endl;
         return value;
     }
+    int asyncEvaluate() const
+    {
+        std::cout<<"Number : "<<value<<std::endl;
+        return value;
+    }
+
+    void asyncEvaluate2(promise<int>* p) const
+    {
+        std::cout<<"Number : "<<value<<std::endl;
+        p->set_value(value);
+    }
+
 };
 
 class BinaryExpression : public Expression
@@ -46,9 +70,77 @@ public:
     {
         if(operatorMap.count(operator_) > 0)
         {
-            return operatorMap[operator_](left->evaluate(), right->evaluate());
+            std::cout<<"Start Binary expression: "<<operator_<<std::endl;
+            int result  = operatorMap[operator_](left->evaluate(), right->evaluate());
+            std::cout<<"End Binary expression: "<<operator_<<" Resultado: "<<result<<std::endl;
+            return result;
         }
         return 0;
+    }
+    int asyncEvaluate() const
+    {
+        if(left && right)
+        {
+            if(operatorMap.count(operator_) > 0)
+            {
+                std::cout<<"Start Binary expression: "<<operator_<<std::endl;
+                auto future_leftValue = async(launch::async, &Expression::asyncEvaluate, left);
+                auto future_rigthValue = async(launch::async, &Expression::asyncEvaluate, right);
+                const int leftValue = future_leftValue.get();
+                const int rightValue = future_rigthValue.get();
+                int result =operatorMap[operator_](leftValue, rightValue);
+                std::cout<<"End Binary expression: "<<operator_<<" Resultado: "<<result<<std::endl;
+                return result;
+            }
+            else
+            {
+                throw std::runtime_error("Error: Operator not supported.");
+            }
+        }
+        else
+        {
+            throw std::runtime_error("Error: Invalid Expression");
+        }
+    }
+
+    void asyncEvaluate2(promise<int>* p) const
+    {
+        if(left && right)
+        {
+            if(operatorMap.count(operator_) > 0)
+            {
+                std::cout<<"Start Binary expression: "<<operator_<<std::endl;
+                promise<int> promise_left, promise_right;
+                auto future_left = promise_left.get_future();
+                thread thread_left(&Expression::asyncEvaluate2, left, &promise_left);
+                auto future_right= promise_right.get_future();
+                thread thread_right(&Expression::asyncEvaluate2, right, &promise_right);
+
+                const int leftValue = future_left.get();
+                const int rightValue = future_right.get();
+                int result =operatorMap[operator_](leftValue, rightValue);
+                p->set_value(result);
+
+                if(thread_left.joinable())
+                {
+                    thread_left.join();
+                }
+                if(thread_right.joinable())
+                {
+                    thread_right.join();
+                }
+
+                std::cout<<"End Binary expression: "<<operator_<<" Resultado: "<<result<<std::endl;
+            }
+            else
+            {
+                throw std::runtime_error("Error: Operator not supported.");
+            }
+        }
+        else
+        {
+            throw std::runtime_error("Error: Invalid Expression");
+        }
     }
 };
 
@@ -56,6 +148,8 @@ class ExpressionTree
 {
 public:
     const int evaluate();
+    const int asyncEvaluate();
+    const int asyncEvaluate2();
     ExpressionTree(const char*);
     void recorridoInorden();
     void recorridoPostOrden();
@@ -84,6 +178,19 @@ ExpressionTree::ExpressionTree(const char* input)
 const int ExpressionTree::evaluate()
 {
     return root->evaluate();
+}
+
+const int ExpressionTree::asyncEvaluate()
+{
+    return root->asyncEvaluate();
+}
+
+const int ExpressionTree::asyncEvaluate2()
+{
+    promise<int> result;
+    future<int> future_result = result.get_future();
+    root->asyncEvaluate2(&result);
+    return future_result.get();
 }
 
 Expression* ExpressionTree::parseNumero(const char*& s)
